@@ -1,178 +1,303 @@
 'use client';
 
+import { AnimatePresence, motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { FiShoppingCart } from 'react-icons/fi';
+import { useCart } from '../context/CartContext';
+import { Product } from '../types';
 
-// Placeholder product data - in a real app this would come from a database
-const products = [
-  {
-    id: 1,
-    name: 'Charizard',
-    cardSet: 'Base Set',
-    cardNumber: '4/102',
-    grader: 'PSA',
-    grade: '9',
-    price: 1299.99,
-    image: 'https://images.unsplash.com/photo-1611931960487-4932667079f1?q=80&w=1374&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    pokemonName: 'Charizard',
-    category: 'GRADED_CARD',
-  },
-  {
-    id: 2,
-    name: 'Blastoise',
-    cardSet: 'Base Set',
-    cardNumber: '2/102',
-    grader: 'BGS',
-    grade: '8.5',
-    price: 899.99,
-    image: 'https://images.unsplash.com/photo-1647893977174-d1a0d4bd93e4?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    pokemonName: 'Blastoise',
-    category: 'GRADED_CARD',
-  },
-  {
-    id: 3,
-    name: 'Venusaur',
-    cardSet: 'Base Set',
-    cardNumber: '15/102',
-    grader: 'CGC',
-    grade: '8',
-    price: 699.99,
-    image: 'https://images.unsplash.com/photo-1647893977169-40183c5f064e?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    pokemonName: 'Venusaur',
-    category: 'GRADED_CARD',
-  },
+interface FilterOptions {
+  cardTypes: string[];
+  conditions: string[];
+  sets: string[];
+}
 
+interface FilterState {
+  priceRange: string;
+  cardType: string;
+  condition: string;
+  set: string;
+  sortBy: string;
+  searchQuery: string;
+}
+
+const initialFilterState: FilterState = {
+  priceRange: '',
+  cardType: '',
+  condition: '',
+  set: '',
+  sortBy: '',
+  searchQuery: '',
+};
+
+const priceRanges = [
+  { label: 'All Prices', value: '' },
+  { label: 'Under $50', value: '0-50' },
+  { label: '$50 - $100', value: '50-100' },
+  { label: '$100 - $200', value: '100-200' },
+  { label: '$200 - $500', value: '200-500' },
+  { label: 'Over $500', value: '500-10000' },
 ];
 
-export default function Shop() {
+const sortOptions = [
+  { label: 'Default', value: '' },
+  { label: 'Price: Low to High', value: 'price-asc' },
+  { label: 'Price: High to Low', value: 'price-desc' },
+  { label: 'Name: A to Z', value: 'name-asc' },
+  { label: 'Name: Z to A', value: 'name-desc' },
+];
+
+function FilterPanel({
+  filters,
+  filterOptions,
+  onChange,
+}: {
+  filters: FilterState;
+  filterOptions: FilterOptions;
+  onChange: (filters: FilterState) => void;
+}) {
   return (
-    <div className="bg-[#F5F5DC] min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold text-[#8B4513] mb-6">
-            Shop Pokémon Cards
-          </h1>
-          <p className="text-[#8B4513]/80 max-w-3xl">
-            Browse our collection of professionally graded Pokémon cards and rare sealed products.
-            Each item has been authenticated and verified to ensure you receive exactly what you're
-            looking for.
-          </p>
-        </div>
+    <div className="bg-white p-6 rounded-lg shadow-sm space-y-6">
+      <div>
+        <label className="block text-sm font-medium text-[#8B4513] mb-2">
+          Search
+        </label>
+        <input
+          type="text"
+          value={filters.searchQuery}
+          onChange={(e) =>
+            onChange({ ...filters, searchQuery: e.target.value })
+          }
+          placeholder="Search cards..."
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FF6B35]"
+        />
+      </div>
 
-        {/* Filters */}
-        <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-          <div className="flex flex-wrap gap-4">
-            <div className="w-full md:w-auto">
-              <label htmlFor="category" className="block text-sm font-medium text-[#8B4513] mb-1">
-                Category
-              </label>
-              <select
-                id="category"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#FF6B35] focus:ring-[#FF6B35] sm:text-sm"
-              >
-                <option value="">All Categories</option>
-                <option value="GRADED_CARD">Graded Cards</option>
-                <option value="RAW_CARD">Raw Cards</option>
-                <option value="SEALED_BOOSTER">Sealed Boosters</option>
-                <option value="SEALED_BOX">Sealed Boxes</option>
-                <option value="SEALED_COLLECTION">Collections</option>
-              </select>
-            </div>
-            
-            <div className="w-full md:w-auto">
-              <label htmlFor="grader" className="block text-sm font-medium text-[#8B4513] mb-1">
-                Grading Company
-              </label>
-              <select
-                id="grader"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#FF6B35] focus:ring-[#FF6B35] sm:text-sm"
-              >
-                <option value="">All Graders</option>
-                <option value="PSA">PSA</option>
-                <option value="BGS">BGS</option>
-                <option value="CGC">CGC</option>
-              </select>
-            </div>
-            
-            <div className="w-full md:w-auto">
-              <label htmlFor="set" className="block text-sm font-medium text-[#8B4513] mb-1">
-                Card Set
-              </label>
-              <select
-                id="set"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#FF6B35] focus:ring-[#FF6B35] sm:text-sm"
-              >
-                <option value="">All Sets</option>
-                <option value="Base Set">Base Set</option>
-                <option value="Jungle">Jungle</option>
-                <option value="Fossil">Fossil</option>
-                <option value="Team Rocket">Team Rocket</option>
-                <option value="Neo Genesis">Neo Genesis</option>
-                <option value="Celebrations">Celebrations</option>
-              </select>
-            </div>
-            
-            <div className="w-full md:w-auto">
-              <label htmlFor="sort" className="block text-sm font-medium text-[#8B4513] mb-1">
-                Sort By
-              </label>
-              <select
-                id="sort"
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#FF6B35] focus:ring-[#FF6B35] sm:text-sm"
-              >
-                <option value="featured">Featured</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="newest">Newest</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <div key={product.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-              <div className="relative h-60 w-full overflow-hidden bg-gray-200">
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  className="object-cover"
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
-                {product.category === 'GRADED_CARD' && (
-                  <div className="absolute top-2 right-2 bg-[#FF6B35] text-white text-xs font-bold px-2 py-1 rounded">
-                    {product.grader} {product.grade}
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-4">
-                <h3 className="text-[#8B4513] font-semibold text-lg truncate">
-                  {product.name}
-                </h3>
-                <p className="text-[#8B4513]/70 text-sm">
-                  {product.cardSet}
-                  {product.cardNumber && ` • ${product.cardNumber}`}
-                </p>
-                <div className="flex justify-between items-center mt-4">
-                  <p className="text-[#8B4513] font-bold">
-                    ${product.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <Link
-                    href={`/shop/product/${product.id}`}
-                    className="text-sm bg-[#4A90E2] text-white font-medium px-3 py-1 rounded-md hover:bg-[#4A90E2]/80 transition-colors"
-                  >
-                    View Details
-                  </Link>
-                </div>
-                <button className="w-full mt-3 py-2 bg-[#FF6B35] text-white rounded-md hover:bg-[#FF6B35]/90 transition-colors">
-                  Add to Cart
-                </button>
-              </div>
-            </div>
+      <div>
+        <label className="block text-sm font-medium text-[#8B4513] mb-2">
+          Price Range
+        </label>
+        <select
+          value={filters.priceRange}
+          onChange={(e) =>
+            onChange({ ...filters, priceRange: e.target.value })
+          }
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FF6B35]"
+        >
+          {priceRanges.map((range) => (
+            <option key={range.value} value={range.value}>
+              {range.label}
+            </option>
           ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-[#8B4513] mb-2">
+          Card Type
+        </label>
+        <select
+          value={filters.cardType}
+          onChange={(e) =>
+            onChange({ ...filters, cardType: e.target.value })
+          }
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FF6B35]"
+        >
+          <option value="">All Types</option>
+          {filterOptions.cardTypes.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-[#8B4513] mb-2">
+          Condition
+        </label>
+        <select
+          value={filters.condition}
+          onChange={(e) =>
+            onChange({ ...filters, condition: e.target.value })
+          }
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FF6B35]"
+        >
+          <option value="">All Conditions</option>
+          {filterOptions.conditions.map((condition) => (
+            <option key={condition} value={condition}>
+              {condition}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-[#8B4513] mb-2">
+          Set
+        </label>
+        <select
+          value={filters.set}
+          onChange={(e) => onChange({ ...filters, set: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FF6B35]"
+        >
+          <option value="">All Sets</option>
+          {filterOptions.sets.map((set) => (
+            <option key={set} value={set}>
+              {set}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-[#8B4513] mb-2">
+          Sort By
+        </label>
+        <select
+          value={filters.sortBy}
+          onChange={(e) => onChange({ ...filters, sortBy: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FF6B35]"
+        >
+          {sortOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function ProductCard({ product }: { product: Product }) {
+  const { addToCart } = useCart();
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+    >
+      <div className="relative h-48">
+        <Image
+          src={product.image}
+          alt={product.name}
+          fill
+          className="object-contain"
+        />
+      </div>
+      <div className="p-4">
+        <h3 className="text-lg font-semibold text-[#8B4513] mb-1">
+          {product.name}
+        </h3>
+        <p className="text-[#8B4513]/70 text-sm mb-2">
+          {product.description}
+        </p>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-[#FF6B35] font-bold">
+            ${product.price.toFixed(2)}
+          </span>
+          <span className="text-[#8B4513]/70 text-sm">
+            {product.condition}
+          </span>
+        </div>
+        <button
+          onClick={() => addToCart(product)}
+          className="w-full bg-[#FF6B35] text-white py-2 px-4 rounded-md hover:bg-[#FF6B35]/90 transition-colors"
+        >
+          Add to Cart
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+export default function Shop() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    cardTypes: [],
+    conditions: [],
+    sets: [],
+  });
+  const [filters, setFilters] = useState<FilterState>(initialFilterState);
+  const [loading, setLoading] = useState(true);
+  const { items } = useCart();
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const queryParams = new URLSearchParams();
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value) queryParams.append(key, value);
+        });
+
+        const response = await fetch(`/api/products?${queryParams}`);
+        const data = await response.json();
+        setProducts(data.products);
+        setFilterOptions(data.filterOptions);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+      setLoading(false);
+    };
+
+    fetchProducts();
+  }, [filters]);
+
+  return (
+    <div className="min-h-screen bg-[#F5F5DC] py-16">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex justify-between items-center mb-8">
+          <motion.h1 
+            className="text-3xl font-bold text-[#8B4513]"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            Shop
+          </motion.h1>
+          <Link 
+            href="/cart"
+            className="relative bg-white p-2 rounded-full shadow-sm hover:shadow-md transition-shadow"
+          >
+            <FiShoppingCart className="w-6 h-6 text-[#8B4513]" />
+            {items.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#FF6B35] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                {items.length}
+              </span>
+            )}
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="md:col-span-1">
+            <FilterPanel
+              filters={filters}
+              filterOptions={filterOptions}
+              onChange={setFilters}
+            />
+          </div>
+
+          <div className="md:col-span-3">
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6B35]"></div>
+              </div>
+            ) : (
+              <AnimatePresence>
+                <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </div>
         </div>
       </div>
     </div>
